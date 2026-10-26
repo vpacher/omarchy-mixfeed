@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "vpacher.mixfeed",
   "name": "Mixfeed",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "author": "vpacher",
   "license": "MIT OR Apache-2.0",
-  "description": "State of the Mixfeed Mic (NDI® receiver), source and reference level",
+  "description": "Use an NDI® source as a virtual webcam and microphone in any app. The bar widget shows when apps are on air, selects the source and controls mute and the headphone monitor.",
   "kinds": [
     "bar-widget"
   ],
@@ -14,7 +14,7 @@
   },
   "barWidget": {
     "displayName": "Mixfeed",
-    "description": "State of the Mixfeed Mic, source and reference level",
+    "description": "On-air light and controls for the Mixfeed NDI® webcam and microphone",
     "category": "Audio",
     "allowMultiple": false,
     "defaultSection": "right"

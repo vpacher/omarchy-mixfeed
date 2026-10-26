@@ -1,6 +1,6 @@
 # Mixfeed widget for Omarchy
 
-Bar widget for [Mixfeed](https://github.com/vpacher/mixfeed). Mixfeed receives an [NDI®](https://ndi.video/) source on Linux and gives it to your applications as a microphone ("Mixfeed Mic") and a webcam ("Mixfeed").
+Use an [NDI®](https://ndi.video/) source as a virtual webcam and microphone in any app. [Mixfeed](https://github.com/vpacher/mixfeed) receives the NDI source on Linux and gives it to your applications as a webcam ("Mixfeed") and a microphone ("Mixfeed Mic"). This is its bar widget.
 
 The widget shows the state of the microphone and the camera, and lights up while an application uses them (on air). Its panel selects the NDI source and the reference level, and controls Mute, Keep connected and the headphone Monitor.
 
@@ -22,15 +22,15 @@ The widget is the control for the Mixfeed service `mixfeedd`. It does not receiv
 
 ## Install
 
-This widget release was tested with Mixfeed commit `16b41934c48dc3dc4ef10be57e44dce444045816`. The procedure installs exactly that commit, not a branch or a tag.
+This widget release was tested with Mixfeed commit `a7fa1506b6421f7085fcefe4984da493fc7a33a3`. The procedure installs exactly that commit, not a branch or a tag.
 
-1. Do the preparation steps 1–3 of the Mixfeed README at that commit: [Mixfeed, section 3 "Install"](https://github.com/vpacher/mixfeed/blob/16b41934c48dc3dc4ef10be57e44dce444045816/README.md#3-install) (requirements, camera module).
+1. Do the preparation steps 1–3 of the Mixfeed README at that commit: [Mixfeed, section 3 "Install"](https://github.com/vpacher/mixfeed/blob/a7fa1506b6421f7085fcefe4984da493fc7a33a3/README.md#3-install) (requirements, camera module).
 
 2. Get Mixfeed at the tested commit, then build and install it:
 
    ```sh
    git clone https://github.com/vpacher/mixfeed.git ~/.local/share/mixfeed/source &&
-     git -C ~/.local/share/mixfeed/source checkout --detach 16b41934c48dc3dc4ef10be57e44dce444045816 &&
+     git -C ~/.local/share/mixfeed/source checkout --detach a7fa1506b6421f7085fcefe4984da493fc7a33a3 &&
      ~/.local/share/mixfeed/source/linux/install.sh
    ```
 
@@ -84,7 +84,7 @@ The widget calls `~/.local/bin/mfctl` (installed with Mixfeed) to read the state
 
 ## Security
 
-Report vulnerabilities privately; see [SECURITY.md of Mixfeed](https://github.com/vpacher/mixfeed/blob/16b41934c48dc3dc4ef10be57e44dce444045816/SECURITY.md).
+Report vulnerabilities privately; see [SECURITY.md of Mixfeed](https://github.com/vpacher/mixfeed/blob/a7fa1506b6421f7085fcefe4984da493fc7a33a3/SECURITY.md).
 
 ## Licence
 
