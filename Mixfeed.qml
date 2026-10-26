@@ -1,6 +1,6 @@
-// Mixfeed bar widget: state of mixfeedd's "Mixfeed Mic", and a keyboard
-// panel to choose the NDI source and the reference level. Talks to mixfeedd only
-// through mfctl (~/.local/bin, installed by linux/install.sh).
+// Mixfeed bar widget: state of mixfeedd's "Mixfeed Mic" and camera, and a keyboard
+// panel to choose the NDI source, the reference level and the monitor output. Talks
+// to mixfeedd only through mfctl (~/.local/bin, installed by linux/install.sh).
 //
 // Panel keys: j/k or arrows move, Enter/Space select, r refresh, Esc close,
 // Tab switches to the next bar panel.
@@ -9,6 +9,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Services.Pipewire
 import qs.Commons
 import qs.Ui
 
@@ -27,6 +28,11 @@ Panel {
   property var rxSettings: null
   property var sources: []
   property bool daemonUp: false
+  // Outputs for the monitor as plain { name, label } copies of the PipeWire sinks.
+  // A Repeater on the live PipeWire model can crash Quickshell when a node goes
+  // away (see Omarchy's audio panel), so the panel uses this copy, made while open.
+  property var outputs: []
+  readonly property int maxOutputs: 16
   // Keyboard cursor over all choices: the source rows ("None" last), then the levels.
   property bool cursorActive: false
   property int cursorIndex: 0
@@ -45,8 +51,11 @@ Panel {
   readonly property bool onAir: micOnAir || cameraLive
   readonly property bool broken: !daemonUp || rxState === "error" || rxState === "lost"
   readonly property var sourceRows: sources.concat([""])
-  // Choices for the cursor: sources, levels, then "keep connected" and "monitor".
-  readonly property int choiceCount: sourceRows.length + levels.length + 3
+  // Monitor rows: the outputs, then "Off" (empty name) last.
+  readonly property var monitorRows: outputs.concat([{ name: "", label: "Off" }])
+  // Choices for the cursor: sources, levels, "mute", "keep connected", then the monitor rows.
+  readonly property int monitorBase: sourceRows.length + levels.length + 2
+  readonly property int choiceCount: monitorBase + monitorRows.length
   // The setting is a name part; mixfeedd connects to the first match.
   readonly property string matchedSource: {
     if (status && status.source) return status.source
@@ -86,7 +95,7 @@ Panel {
   }
 
   function tooltipBase() {
-    if (!daemonUp) return "Mixfeed: mixfeedd not running (install: github.com/vpacher/mixfeed)"
+    if (!daemonUp) return "Mixfeed: mixfeedd not running (install: see README.md of the widget)"
     if (onAir) return "Mixfeed: live (" + [micOnAir ? "microphone" : "", cameraLive ? "camera" : ""].filter(function(s) { return s }).join(", ") + ")"
       + (cameraLive && camera.source_width ? " · camera source " + cameraSourceDetail() : "")
     if (rxState === "connected") return "Mixfeed: " + stateText() + " " + status.source
@@ -152,7 +161,23 @@ Panel {
     return (signed && v >= 0 ? "+" : "") + v.toFixed(digits) + unit
   }
 
+  // Copy the PipeWire output devices (not streams, not Mixfeed's own nodes).
+  // Assigns only on a change, so the Repeater keeps its rows (hover, cursor).
+  function refreshOutputs() {
+    var nodes = Pipewire.nodes ? Pipewire.nodes.values : []
+    var list = []
+    for (var i = 0; i < nodes.length && list.length < maxOutputs; i++) {
+      var n = nodes[i]
+      if (!n || !n.isSink || n.isStream) continue
+      var name = String(n.name || "")
+      if (!name || name.indexOf("mixfeed") === 0) continue
+      list.push({ name: name, label: String(n.description || n.nickname || name) })
+    }
+    if (JSON.stringify(list) !== JSON.stringify(outputs)) outputs = list
+  }
+
   function refresh() {
+    if (opened) refreshOutputs()
     if (poll.running) return
     // With --sources the request also keeps mixfeedd browsing, so only while the panel is open.
     poll.command = [mfctl, "json"].concat(opened ? ["--sources"] : [])
@@ -168,7 +193,9 @@ Panel {
   function selectLevel(key) { run(["level", key]) }
   function toggleMute() { run(["mute", muted ? "off" : "on"]) }
   function toggleKeepWarm() { run(["warm", rxSettings && rxSettings.keep_warm ? "off" : "on"]) }
-  function toggleMonitor() { run(["monitor", monitoring ? "off" : "on"]) }
+  // name = PipeWire node name of the output; "" = off.
+  function selectMonitor(name) { run(name === "" ? ["monitor", "off"] : ["monitor", "on", name]) }
+  function monitorActive(name) { return name === "" ? !monitoring : monitoring && status.monitor === name }
 
   function moveCursor(delta) {
     if (!cursorActive) {
@@ -184,7 +211,7 @@ Panel {
     else if (cursorIndex < sourceRows.length + levels.length) selectLevel(levels[cursorIndex - sourceRows.length].key)
     else if (cursorIndex === sourceRows.length + levels.length) toggleMute()
     else if (cursorIndex === sourceRows.length + levels.length + 1) toggleKeepWarm()
-    else toggleMonitor()
+    else if (cursorIndex - monitorBase < monitorRows.length) selectMonitor(monitorRows[cursorIndex - monitorBase].name)
   }
 
   onOpenedChanged: {
@@ -296,7 +323,7 @@ Panel {
 
             Text {
               textFormat: Text.PlainText
-              text: "Mixfeed Mic"
+              text: "Mixfeed"
               color: root.fg
               font.family: root.fontFamily
               font.pixelSize: Style.font.title
@@ -328,20 +355,13 @@ Panel {
           InfoLabel {
             width: parent.width
             wrapMode: Text.WordWrap
-            text: "The widget needs the mixfeedd service. If it is not installed, install Mixfeed with linux/install.sh from:"
+            text: "The widget needs the mixfeedd service. If it is not installed, install Mixfeed at the tested commit with the procedure in:"
           }
 
           InfoValue {
-            text: "github.com/vpacher/mixfeed"
-            font.underline: installLink.containsMouse
-
-            MouseArea {
-              id: installLink
-              anchors.fill: parent
-              hoverEnabled: true
-              cursorShape: Qt.PointingHandCursor
-              onClicked: Qt.openUrlExternally("https://github.com/vpacher/mixfeed")
-            }
+            width: parent.width
+            wrapMode: Text.WrapAnywhere
+            text: "~/.config/omarchy/plugins/vpacher.mixfeed/README.md, section \"Install\""
           }
         }
 
@@ -561,25 +581,47 @@ Panel {
               }
             }
           }
+        }
 
-          Button {
-            readonly property int choice: root.sourceRows.length + root.levels.length + 2
-            width: parent.width
-            text: root.monitoring ? "Monitor on (" + root.status.monitor + ")" : "Monitor"
-            tooltipText: "Play the microphone to the default output (headphones). The monitor does not count as on air."
-            fontSize: Style.font.bodySmall
+        // ---------- Headphone monitor ----------
+        PanelSeparator {
+          foreground: root.fg
+        }
+
+        Column {
+          width: parent.width
+          spacing: Style.space(6)
+
+          PanelSectionHeader {
+            text: "MONITOR"
             foreground: root.fg
             fontFamily: root.fontFamily
-            horizontalPadding: Style.spacing.controlPaddingX
-            verticalPadding: Style.spacing.controlPaddingY + Style.space(2)
-            bordered: true
-            active: root.monitoring
-            hasCursor: root.cursorActive && root.cursorIndex === choice
-            onClicked: root.toggleMonitor()
-            onHovered: function(h) {
-              if (h) {
-                root.cursorActive = true
-                root.cursorIndex = choice
+          }
+
+          Repeater {
+            model: root.monitorRows
+            Button {
+              required property var modelData
+              required property int index
+              readonly property int choice: root.monitorBase + index
+              width: parent.width
+              text: modelData.label
+              tooltipText: modelData.name === ""
+                ? "Monitor off"
+                : "Play the microphone to this output (headphones). The monitor does not count as on air."
+              fontSize: Style.font.bodySmall
+              foreground: root.fg
+              fontFamily: root.fontFamily
+              horizontalPadding: Style.spacing.controlPaddingX
+              verticalPadding: Style.spacing.controlPaddingY
+              active: root.monitorActive(modelData.name)
+              hasCursor: root.cursorActive && root.cursorIndex === choice
+              onClicked: root.selectMonitor(modelData.name)
+              onHovered: function(h) {
+                if (h) {
+                  root.cursorActive = true
+                  root.cursorIndex = choice
+                }
               }
             }
           }
